@@ -123,11 +123,14 @@ Returns only listings that are `PUBLISHED`, not deleted, and whose tenant is `AC
 | `propertyType` | `HOUSE`, `APARTMENT`, `ROOM`, `BEDSITTER`, `STUDIO` or `OTHER`. |
 | `minPrice`, `maxPrice` | Inclusive. `minPrice > maxPrice` returns 422. |
 | `bedrooms` | Exact. |
+| `minBedrooms`, `minBathrooms` | Lower bounds (inclusive). A listing with no count recorded is left out. |
+| `amenities` | Comma-separated, at most 10; the listing must have every one (case-insensitive, whole words as the lister typed them). |
+| `north`, `south`, `east`, `west` | Map bounds in degrees. All four or none (else 422; `south > north` is 422). Only listings with a pin inside the box are returned; `west > east` means the box crosses the antimeridian. |
 | `available` | `true` or `false`. |
 | `sort` | `newest` (default), `price_asc` or `price_desc`; the id is always the tiebreaker, so ordering is stable. |
 | `page`, `limit` | Pagination. |
 
-Item fields: `id, tenantId, title, propertyType, priceAmount, priceCurrency, bedrooms, bathrooms, county, area, isAvailable, primaryImageUrl, createdAt`.
+Item fields: `id, tenantId, title, propertyType, priceAmount, priceCurrency, bedrooms, bathrooms, county, area, isAvailable, primaryImageUrl, latitude, longitude, createdAt`. `latitude`/`longitude` are `null` when the lister has not placed a pin.
 
 ### `GET /api/properties/me`
 
@@ -140,7 +143,7 @@ The tenant's own non-deleted listings in any status. Items have the discovery fi
 - **Admin:** sees everything, including deleted listings.
 - **Everyone else:** 404 `PROPERTY_NOT_FOUND`.
 
-Detail fields: `id, tenantId, title, description, propertyType, priceAmount, priceCurrency, bedrooms, bathrooms, county, area, addressText, amenities, status, isAvailable, createdAt, updatedAt, tenant { id, name, image }, uploads [{ id, url, isPrimary, displayOrder, createdAt }]` (ordered by `displayOrder`). `rejectionReason` is included for the owner and admins only; `deletedAt` for admins only.
+Detail fields: `id, tenantId, title, description, propertyType, priceAmount, priceCurrency, bedrooms, bathrooms, county, area, addressText, amenities, latitude, longitude, status, isAvailable, createdAt, updatedAt, tenant { id, name, image }, uploads [{ id, url, isPrimary, displayOrder, createdAt }]` (ordered by `displayOrder`). `rejectionReason` is included for the owner and admins only; `deletedAt` for admins only.
 
 ### `POST /api/properties`
 
@@ -157,18 +160,21 @@ Strict body. The listing is created `PUBLISHED` and returned with 201.
   "county": "Nairobi",
   "area": "Kilimani",
   "addressText": "optional, ≤255",
-  "amenities": ["parking", "water"]
+  "amenities": ["parking", "water"],
+  "latitude": -1.2921,
+  "longitude": 36.7856
 }
 ```
 
 - `priceAmount` must be greater than 0 and at most 100,000,000.
 - `bedrooms` and `bathrooms` are optional integers from 0 to 50.
 - `amenities` is optional: at most 30 items of 1–50 characters.
+- `latitude` (−90…90) and `longitude` (−180…180) are optional and must be given together (422 otherwise).
 - `status`, `tenantId` and `rejectionReason` are rejected with 422.
 
 ### `PATCH /api/properties/:id`
 
-All create fields are optional (`bedrooms`, `bathrooms` and `addressText` accept `null`), plus `isAvailable` (boolean). The body is strict, and an empty body is a no-op.
+All create fields are optional (`bedrooms`, `bathrooms`, `addressText` and the `latitude`/`longitude` pair accept `null`), plus `isAvailable` (boolean). The body is strict, and an empty body is a no-op.
 
 - `status` never changes here, so a `REJECTED` listing stays rejected but editable.
 - Non-owner: 403 `NOT_PROPERTY_OWNER`. Deleted: 404.
@@ -177,6 +183,22 @@ All create fields are optional (`bedrooms`, `bathrooms` and `addressText` accept
 ### `DELETE /api/properties/:id`
 
 Soft delete; returns `{ id, deletedAt }`. A CONFIRMED booking blocks it with 409 `PROPERTY_HAS_CONFIRMED_BOOKING`. Otherwise every PENDING request is rejected with the reason *"This listing was removed by the owner"*.
+
+### Saved listings
+
+| Method | Endpoint | Access |
+|---|---|---|
+| `GET` | `/api/saved` | Signed in |
+| `GET` | `/api/saved/ids` | Signed in |
+| `PUT` | `/api/saved/:propertyId` | Signed in |
+| `DELETE` | `/api/saved/:propertyId` | Signed in |
+
+Private to the signed-in user (any role).
+
+- `GET /api/saved`: paginated discovery items plus `savedAt`, newest saved first. A listing that stops being public (removed, rejected, owner suspended) drops out.
+- `GET /api/saved/ids`: every saved listing id (at most 500), to mark cards as saved.
+- `PUT`: idempotent; returns `{ propertyId, saved: true }`. Only a publicly visible listing can be saved, else 404 `PROPERTY_NOT_FOUND`.
+- `DELETE`: idempotent; returns `{ propertyId, saved: false }`.
 
 ---
 

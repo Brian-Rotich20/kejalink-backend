@@ -98,7 +98,7 @@ export async function rejectPendingBookings(tx: Tx, propertyId: string, reason: 
 
 // ── Queries ──────────────────────────────────────────────────────────────────
 
-const listColumns = {
+export const listColumns = {
   id: properties.id,
   tenantId: properties.tenantId,
   title: properties.title,
@@ -111,18 +111,20 @@ const listColumns = {
   area: properties.area,
   isAvailable: properties.isAvailable,
   primaryImageUrl: uploads.url,
+  latitude: properties.latitude,
+  longitude: properties.longitude,
   createdAt: properties.createdAt,
 };
 
 /** At most one primary upload per property (partial unique index), so this join never multiplies rows. */
-const primaryImageJoin = and(eq(uploads.propertyId, properties.id), eq(uploads.isPrimary, true));
+export const primaryImageJoin = and(eq(uploads.propertyId, properties.id), eq(uploads.isPrimary, true));
 
-const toListItem = <T extends { priceAmount: string; primaryImageUrl: string | null }>(row: T) => ({
+export const toListItem = <T extends { priceAmount: string; primaryImageUrl: string | null }>(row: T) => ({
   ...row,
   priceAmount: toMoney(row.priceAmount),
 });
 
-const publicVisibility = (): SQL[] => [
+export const publicVisibility = (): SQL[] => [
   eq(properties.status, "PUBLISHED"),
   isNull(properties.deletedAt),
   eq(user.status, "ACTIVE"),
@@ -146,6 +148,21 @@ function filterConditions(f: PropertyFilters): SQL[] {
   if (f.minPrice !== undefined) conditions.push(gte(properties.priceAmount, fromMoney(f.minPrice)));
   if (f.maxPrice !== undefined) conditions.push(lte(properties.priceAmount, fromMoney(f.maxPrice)));
   if (f.bedrooms !== undefined) conditions.push(eq(properties.bedrooms, f.bedrooms));
+  if (f.minBedrooms !== undefined) conditions.push(gte(properties.bedrooms, f.minBedrooms));
+  if (f.minBathrooms !== undefined) conditions.push(gte(properties.bathrooms, f.minBathrooms));
+  // Every requested amenity, compared case-insensitively with the lister's own words.
+  for (const amenity of f.amenities ?? []) {
+    conditions.push(sql`exists (select 1 from unnest(${properties.amenities}) as a where lower(a) = ${amenity})`);
+  }
+  if (f.north !== undefined && f.south !== undefined && f.east !== undefined && f.west !== undefined) {
+    conditions.push(sql`${properties.latitude} between ${f.south} and ${f.north}`);
+    // A box that crosses the antimeridian has west > east.
+    conditions.push(
+      f.west <= f.east
+        ? sql`${properties.longitude} between ${f.west} and ${f.east}`
+        : sql`(${properties.longitude} >= ${f.west} or ${properties.longitude} <= ${f.east})`,
+    );
+  }
   if (f.available !== undefined) conditions.push(eq(properties.isAvailable, f.available));
   return conditions;
 }
@@ -247,6 +264,8 @@ export async function getPropertyById(id: string, viewer: Viewer): Promise<Prope
       area: properties.area,
       addressText: properties.addressText,
       amenities: properties.amenities,
+      latitude: properties.latitude,
+      longitude: properties.longitude,
       status: properties.status,
       isAvailable: properties.isAvailable,
       rejectionReason: properties.rejectionReason,
@@ -297,6 +316,8 @@ export async function createProperty(tenantId: string, input: CreatePropertyInpu
     bathrooms: input.bathrooms ?? null,
     addressText: input.addressText ?? null,
     amenities: input.amenities ?? [],
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
     status: "PUBLISHED",
   };
   const [row] = await db.insert(properties).values(values).returning({ id: properties.id });
@@ -315,6 +336,8 @@ function toChanges(input: UpdatePropertyInput): Partial<NewProperty> {
   if (input.area !== undefined) changes.area = input.area;
   if (input.addressText !== undefined) changes.addressText = input.addressText;
   if (input.amenities !== undefined) changes.amenities = input.amenities;
+  if (input.latitude !== undefined) changes.latitude = input.latitude;
+  if (input.longitude !== undefined) changes.longitude = input.longitude;
   if (input.isAvailable !== undefined) changes.isAvailable = input.isAvailable;
   return changes;
 }

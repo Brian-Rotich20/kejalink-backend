@@ -95,7 +95,7 @@ describe("GET /api/properties (discovery)", () => {
     expect(Object.keys(res.body.data[0]).sort()).toEqual(
       [
         "id", "tenantId", "title", "propertyType", "priceAmount", "priceCurrency", "bedrooms", "bathrooms",
-        "county", "area", "isAvailable", "primaryImageUrl", "createdAt",
+        "county", "area", "isAvailable", "primaryImageUrl", "latitude", "longitude", "createdAt",
       ].sort(),
     );
   });

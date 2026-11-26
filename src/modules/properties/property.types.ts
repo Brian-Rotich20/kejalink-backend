@@ -16,6 +16,8 @@ export type PropertyListItem = {
   area: string;
   isAvailable: boolean;
   primaryImageUrl: string | null;
+  latitude: number | null;
+  longitude: number | null;
   createdAt: Date;
 };
 
@@ -47,6 +49,8 @@ export type PropertyDetail = {
   area: string;
   addressText: string | null;
   amenities: string[];
+  latitude: number | null;
+  longitude: number | null;
   status: PropertyStatus;
   isAvailable: boolean;
   /** Owner and admin only. */
@@ -71,6 +75,13 @@ export type PropertyFilters = {
   minPrice?: number | undefined;
   maxPrice?: number | undefined;
   bedrooms?: number | undefined;
+  minBedrooms?: number | undefined;
+  minBathrooms?: number | undefined;
+  amenities?: string[] | undefined;
+  north?: number | undefined;
+  south?: number | undefined;
+  east?: number | undefined;
+  west?: number | undefined;
   available?: boolean | undefined;
   sort: PropertySort;
 };
@@ -86,6 +97,8 @@ export type CreatePropertyInput = {
   area: string;
   addressText?: string | undefined;
   amenities?: string[] | undefined;
+  latitude?: number | undefined;
+  longitude?: number | undefined;
 };
 
 export type UpdatePropertyInput = {
@@ -97,6 +110,8 @@ export type UpdatePropertyInput = {
   bathrooms?: number | null | undefined;
   county?: string | undefined;
   area?: string | undefined;
+  latitude?: number | null | undefined;
+  longitude?: number | null | undefined;
   addressText?: string | null | undefined;
   amenities?: string[] | undefined;
   isAvailable?: boolean | undefined;

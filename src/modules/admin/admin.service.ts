@@ -127,6 +127,8 @@ export async function listProperties(filters: AdminPropertyFilters): Promise<Pag
         area: properties.area,
         isAvailable: properties.isAvailable,
         primaryImageUrl: uploads.url,
+        latitude: properties.latitude,
+        longitude: properties.longitude,
         createdAt: properties.createdAt,
         status: properties.status,
         rejectionReason: properties.rejectionReason,

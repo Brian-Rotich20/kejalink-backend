@@ -3,6 +3,7 @@ import {
   boolean,
   char,
   check,
+  doublePrecision,
   index,
   numeric,
   pgTable,
@@ -40,6 +41,10 @@ export const properties = pgTable(
 
     amenities: text("amenities").array().notNull().default(sql`'{}'::text[]`),
 
+    // Map pin set by the lister (WGS84). Both or neither.
+    latitude: doublePrecision("latitude"),
+    longitude: doublePrecision("longitude"),
+
     // Moderation only. Listings are PUBLISHED on creation; admin can REJECT.
     status: propertyStatusEnum("status").notNull().default("PUBLISHED"),
     // Occupancy. Flipped to false when a booking is confirmed.
@@ -68,6 +73,11 @@ export const properties = pgTable(
     check("properties_price_positive", sql`${t.priceAmount} > 0`),
     check("properties_bedrooms_nonneg", sql`${t.bedrooms} IS NULL OR ${t.bedrooms} >= 0`),
     check("properties_bathrooms_nonneg", sql`${t.bathrooms} IS NULL OR ${t.bathrooms} >= 0`),
+    check("properties_location_pair", sql`(${t.latitude} IS NULL) = (${t.longitude} IS NULL)`),
+    check(
+      "properties_location_range",
+      sql`${t.latitude} IS NULL OR (${t.latitude} BETWEEN -90 AND 90 AND ${t.longitude} BETWEEN -180 AND 180)`,
+    ),
   ],
 );
 

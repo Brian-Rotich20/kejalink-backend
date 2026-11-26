@@ -29,6 +29,13 @@
       "when": 1795592236409,
       "tag": "0003_properties_newest_index",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795678034491,
+      "tag": "0004_map_pins_and_saved",
+      "breakpoints": true
     }
   ]
 }
